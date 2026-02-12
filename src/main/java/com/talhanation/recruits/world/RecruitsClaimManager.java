@@ -12,6 +12,7 @@ import net.minecraftforge.network.PacketDistributor;
 
 import javax.annotation.Nullable;
 import java.util.*;
+
 public class RecruitsClaimManager {
     private final Map<ChunkPos, RecruitsClaim> claims = new HashMap<>();
 
@@ -106,5 +107,3 @@ public class RecruitsClaimManager {
         }
     }
 }
-
-

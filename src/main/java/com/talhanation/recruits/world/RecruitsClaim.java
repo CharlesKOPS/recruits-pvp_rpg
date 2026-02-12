@@ -32,6 +32,7 @@ public class RecruitsClaim {
     public boolean isAdmin;
     public boolean isRemoved;
     public static int MAX_SIZE = 50;
+    
     public RecruitsClaim(String name, RecruitsFaction ownerFaction) {
         this.uuid = UUID.randomUUID();
         this.name = name;
@@ -62,6 +63,7 @@ public class RecruitsClaim {
     public ChunkPos getCenter(){
         return this.center;
     }
+    
     public void addChunk(ChunkPos chunkPos) {
         if(claimedChunks.size() >= MAX_SIZE) return;
 
@@ -89,12 +91,15 @@ public class RecruitsClaim {
     public String getOwnerFactionStringID() {
         return ownerFaction.getStringID();
     }
+    
     public RecruitsFaction getOwnerFaction(){
         return ownerFaction;
     }
+    
     public RecruitsPlayerInfo getPlayerInfo(){
         return playerInfo;
     }
+    
     public boolean isBlockInteractionAllowed() {
         return allowBlockInteraction;
     }
@@ -110,15 +115,19 @@ public class RecruitsClaim {
     public void setName(String name) {
         this.name = name;
     }
+    
     public void setAdminClaim(boolean admin){
         this.isAdmin = admin;
     }
+    
     public void setOwnerFaction(RecruitsFaction faction) {
         this.ownerFaction = faction;
     }
+    
     public void setPlayer(RecruitsPlayerInfo playerInfo) {
         this.playerInfo = playerInfo;
     }
+    
     public void setBlockInteractionAllowed(boolean allow) {
         this.allowBlockInteraction = allow;
     }
@@ -156,7 +165,7 @@ public class RecruitsClaim {
         nbt.putBoolean("isAdmin", isAdmin);
         nbt.putBoolean("isUnderSiege", isUnderSiege);
         nbt.putBoolean("isRemoved", isRemoved);
-        // Claimed Chunks
+        
         ListTag chunkList = new ListTag();
         for (ChunkPos pos : claimedChunks) {
             CompoundTag chunkTag = new CompoundTag();
@@ -170,7 +179,6 @@ public class RecruitsClaim {
         nbt.putInt("centerZ", this.getCenter().z);
         nbt.putInt("health", this.getHealth());
 
-        // Defending Parties
         ListTag defendingList = new ListTag();
         if(defendingParties != null && !defendingParties.isEmpty()){
             for (RecruitsFaction team : defendingParties) {
@@ -179,7 +187,6 @@ public class RecruitsClaim {
         }
         nbt.put("defendingParties", defendingList);
 
-        // Attacking Parties
         ListTag attackingList = new ListTag();
         if(attackingParties != null && !attackingParties.isEmpty()){
             for (RecruitsFaction team : attackingParties) {
@@ -199,7 +206,6 @@ public class RecruitsClaim {
         RecruitsClaim claim = new RecruitsClaim(uuid, name, recruitsFaction);
         RecruitsPlayerInfo playerInfo = RecruitsPlayerInfo.getFromNBT(nbt.getCompound("playerInfo"));
         if (playerInfo != null) claim.setPlayer(playerInfo);
-
 
         claim.setBlockInteractionAllowed(nbt.getBoolean("allowInteraction"));
         claim.setBlockPlacementAllowed(nbt.getBoolean("allowPlacement"));
@@ -224,7 +230,6 @@ public class RecruitsClaim {
 
         claim.setHealth(nbt.getInt("health"));
 
-        // Defending Parties
         if (nbt.contains("defendingParties", Tag.TAG_LIST)) {
             ListTag defendingList = nbt.getList("defendingParties", Tag.TAG_COMPOUND);
             for (Tag tag : defendingList) {
@@ -232,7 +237,6 @@ public class RecruitsClaim {
             }
         }
 
-        // Attacking Parties
         if (nbt.contains("attackingParties", Tag.TAG_LIST)) {
             ListTag attackingList = nbt.getList("attackingParties", Tag.TAG_COMPOUND);
             for (Tag tag : attackingList) {
@@ -242,7 +246,6 @@ public class RecruitsClaim {
 
         return claim;
     }
-
 
     public static CompoundTag toNBT(List<RecruitsClaim> list) {
         CompoundTag nbt = new CompoundTag();
@@ -299,6 +302,7 @@ public class RecruitsClaim {
     public int getMaxHealth(){
         return 60 * RecruitsServerConfig.SiegeClaimsConquerTime.get();
     }
+    
     public void setUnderSiege(boolean newState, ServerLevel level) {
         if (this.isUnderSiege == newState) return;
 
@@ -314,6 +318,7 @@ public class RecruitsClaim {
 
         this.isUnderSiege = newState;
     }
+    
     private void startSiege(RecruitsFaction owner, ServerLevel level) {
         notifyDefendersSiegeStart(owner, level);
         notifyAttackersSiegeStart(level);
@@ -343,6 +348,7 @@ public class RecruitsClaim {
             }
         }
     }
+    
     private void notifyDefendersSiegeFailed(RecruitsFaction owner, ServerLevel level) {
         Component msg = SIEGE_FAILED_DEFENDER(getName());
 
@@ -373,10 +379,10 @@ public class RecruitsClaim {
         list.add(recruitsFaction);
     }
 
-
     private List<RecruitsFaction> getAttackingParties() {
         return attackingParties == null ? Collections.emptyList() : attackingParties;
     }
+    
     private List<ServerPlayer> getPlayersOfFaction(RecruitsFaction faction, ServerLevel level) {
         return FactionEvents.recruitsFactionManager
                 .getPlayersInTeam(faction.getStringID(), level);
@@ -385,6 +391,7 @@ public class RecruitsClaim {
     public Component SIEGE_START_ATTACKER(String claim){
         return Component.translatable("chat.recruits.text.siegeStartAttacker", claim).withStyle(ChatFormatting.GOLD);
     }
+    
     public Component SIEGE_START_DEFENDER(String claim, String attackers){
         return Component.translatable("chat.recruits.text.siegeStartDefender", claim, attackers).withStyle(ChatFormatting.GOLD);
     }
@@ -392,10 +399,11 @@ public class RecruitsClaim {
     public Component SIEGE_FAILED_ATTACKER(String claim){
         return Component.translatable("chat.recruits.text.siegeFailedAttacker", claim).withStyle(ChatFormatting.GOLD);
     }
-
+    
     public Component SIEGE_FAILED_DEFENDER(String claim){
         return Component.translatable("chat.recruits.text.siegeFailedDefender", claim).withStyle(ChatFormatting.GOLD);
     }
+    
     public Component SIEGE_SUCCESS_ATTACKER(String claim){
         return Component.translatable("chat.recruits.text.siegeSuccessAttacker", claim).withStyle(ChatFormatting.GOLD);
     }

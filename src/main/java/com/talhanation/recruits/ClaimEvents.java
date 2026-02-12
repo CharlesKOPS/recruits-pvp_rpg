@@ -5,7 +5,9 @@ import com.talhanation.recruits.entities.AbstractRecruitEntity;
 import com.talhanation.recruits.entities.VillagerNobleEntity;
 import com.talhanation.recruits.util.ClaimUtil;
 import com.talhanation.recruits.world.*;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -112,7 +114,6 @@ public class ClaimEvents {
             }
 
             int attackerSize = attackers.size();
-            //int defendersSize = defenders.size();
 
             for(LivingEntity livingEntity : defenders){
                 if(livingEntity.getTeam() == null) continue;
@@ -128,7 +129,13 @@ public class ClaimEvents {
                 claim.addParty(claim.attackingParties, recruitsFaction);
             }
 
+            boolean defenderOnline = isAnyFactionMemberOnline(level, claim.getOwnerFaction());
+
             if(claim.isUnderSiege){
+                if(!defenderOnline){
+                    claim.setHealth(claim.getHealth() - 3);
+                }
+
                 if(attackerSize < RecruitsServerConfig.SiegeClaimsRecruitsAmount.get()){
                     claim.setUnderSiege(false, level);
                     claim.resetHealth();
@@ -138,9 +145,11 @@ public class ClaimEvents {
                     siegeOverVillagers(level, claim);
                 }
                 else{
-                    claim.setHealth(claim.getHealth() - 3);
+                    if(defenderOnline){
+                        claim.setHealth(claim.getHealth() - 3);
+                    }
 
-                    if(claim.getHealth() <= 0){//Siege SUCCESS
+                    if(claim.getHealth() <= 0){
                         claim.setSiegeSuccess(level);
                         recruitsClaimManager.broadcastClaimsToAll(level);
                         siegeOverVillagers(level, claim);
@@ -152,13 +161,27 @@ public class ClaimEvents {
                     recruitsClaimManager.broadcastClaimUpdateTo(claim, players);
                 }
             }
-            //initial
             else if(attackerSize >= RecruitsServerConfig.SiegeClaimsRecruitsAmount.get()){
-                claim.setUnderSiege( true, level);
+                if(!defenderOnline){
+                    for(LivingEntity attacker : attackers){
+                        if(attacker instanceof ServerPlayer player){
+                            player.displayClientMessage(Component.literal("Impossible de conquérir : aucun défenseur connecté !").withStyle(ChatFormatting.RED), true);
+                        }
+                    }
+                    continue;
+                }
+
+                claim.setUnderSiege(true, level);
                 recruitsClaimManager.broadcastClaimsToAll(level);
                 sendVillagersHome(level, claim);
             }
         }
+    }
+
+    private boolean isAnyFactionMemberOnline(ServerLevel level, RecruitsFaction faction) {
+        if (faction == null) return false;
+        List<ServerPlayer> players = FactionEvents.recruitsFactionManager.getPlayersInTeam(faction.getStringID(), level);
+        return players != null && !players.isEmpty();
     }
 
     private void takeOverVillager(ServerLevel level, RecruitsClaim claim, LivingEntity livingEntity) {
@@ -182,6 +205,7 @@ public class ClaimEvents {
                 .filter(recruit -> recruit.isAlive() && recruit.getTeam() != null && teamId.equals(recruit.getTeam().getName()))
                 .toList();
     }
+    
     @SubscribeEvent
     public void onBlockBreakEvent(BlockEvent.BreakEvent event) {
         if(event.getLevel().isClientSide()) return;
@@ -200,11 +224,16 @@ public class ClaimEvents {
             }
             return;
         }
+        
         if(!claim.isBlockBreakingAllowed()){
             boolean isInTeam = player.getTeam() != null && player.getTeam().getName().equals(claim.getOwnerFactionStringID());
-            if(!isInTeam) event.setCanceled(true);
+            if(!isInTeam) {
+                event.setCanceled(true);
+                if(player instanceof ServerPlayer serverPlayer){
+                    serverPlayer.displayClientMessage(Component.literal("Vous ne pouvez pas détruire de blocs ici !").withStyle(ChatFormatting.RED), true);
+                }
+            }
         }
-
     }
 
     @SubscribeEvent
@@ -225,11 +254,18 @@ public class ClaimEvents {
             }
             return;
         }
+        
         if(!claim.isBlockPlacementAllowed()){
             boolean isInTeam = entity instanceof LivingEntity livingEntity && livingEntity.getTeam() != null && livingEntity.getTeam().getName().equals(claim.getOwnerFactionStringID());
-            if(!isInTeam) event.setCanceled(true);
+            if(!isInTeam) {
+                event.setCanceled(true);
+                if(entity instanceof ServerPlayer player){
+                    player.displayClientMessage(Component.literal("Vous ne pouvez pas placer de blocs ici !").withStyle(ChatFormatting.RED), true);
+                }
+            }
         }
     }
+    
     @SubscribeEvent
     public void onExplosion(ExplosionEvent event) {
         if(event.getLevel().isClientSide()) return;
@@ -243,10 +279,26 @@ public class ClaimEvents {
             return;
         }
 
-        if(claim != null && RecruitsServerConfig.ExplosionProtectionInClaims.get()){
-            event.setCanceled(true);
+        if(claim != null){
+            if(RecruitsServerConfig.ExplosionProtectionInClaims.get()){
+                event.setCanceled(true);
+                return;
+            }
+            
+            boolean isProtected = true;
+            if(entity instanceof LivingEntity livingEntity && livingEntity.getTeam() != null){
+                isProtected = !livingEntity.getTeam().getName().equals(claim.getOwnerFactionStringID());
+            }
+            
+            if(isProtected){
+                event.setCanceled(true);
+                if(entity instanceof ServerPlayer player){
+                    player.displayClientMessage(Component.literal("Les explosions sont interdites ici !").withStyle(ChatFormatting.RED), true);
+                }
+            }
         }
     }
+    
     @SubscribeEvent
     public void onBlockInteract(PlayerInteractEvent.RightClickBlock event) {
         if(event.getLevel().isClientSide()) return;
@@ -279,7 +331,12 @@ public class ClaimEvents {
         {
             if(!claim.isBlockInteractionAllowed()){
                 boolean isInTeam = player.getTeam() != null && player.getTeam().getName().equals(claim.getOwnerFactionStringID());
-                if(!isInTeam) event.setCanceled(true);
+                if(!isInTeam) {
+                    event.setCanceled(true);
+                    if(player instanceof ServerPlayer serverPlayer){
+                        serverPlayer.displayClientMessage(Component.literal("Vous ne pouvez pas interagir ici !").withStyle(ChatFormatting.RED), true);
+                    }
+                }
             }
         }
     }
